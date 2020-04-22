@@ -3,11 +3,15 @@
 
 # viafr <img src="man/figures/logo.png" align="right" width="120" />
 
-[![Lifecycle](https://img.shields.io/badge/lifecycle-maturing-blue.svg)](https://www.tidyverse.org/lifecycle/#maturing)
-[![Travis CI Build
+[![Lifecycle
+badge](https://img.shields.io/badge/lifecycle-maturing-blue.svg)](https://www.tidyverse.org/lifecycle/#maturing)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3265046.svg)](https://doi.org/10.5281/zenodo.3265046)
+[![CRAN
+badge](http://www.r-pkg.org/badges/version/viafr)](https://cran.r-project.org/package=viafr)
+[![Travis CI build
 status](https://travis-ci.org/stefanieschneider/viafr.svg?branch=master)](https://travis-ci.org/stefanieschneider/viafr)
-[![AppVeyor Build
-Status](https://ci.appveyor.com/api/projects/status/github/stefanieschneider/viafr?branch=master&svg=true)](https://ci.appveyor.com/project/stefanieschneider/viafr)
+[![AppVeyor build
+status](https://ci.appveyor.com/api/projects/status/github/stefanieschneider/viafr?branch=master&svg=true)](https://ci.appveyor.com/project/stefanieschneider/viafr)
 [![Coverage
 status](http://codecov.io/github/stefanieschneider/viafr/coverage.svg?branch=master)](http://codecov.io/github/stefanieschneider/viafr?branch=master)
 
@@ -22,6 +26,13 @@ regional variations in language, character set, and spelling. For more
 information go to <https://viaf.org/>.
 
 ## Installation
+
+You can install the released version of viafr from
+[CRAN](https://CRAN.R-project.org) with:
+
+``` r
+install.packages("viafr")
+```
 
 To install the development version from
 [GitHub](https://github.com/stefanieschneider/viafr) use:
@@ -46,19 +57,17 @@ containing information about the respective search query. The MARC 21
 field definitions are used, see, e.g.,
 <https://www.loc.gov/marc/bibliographic/>.
 
+### Get Data for VIAF Identifier(s)
+
 ``` r
-library(viafr)
-
-library(dplyr)
-library(purrr)
-
-(result <- viaf_get("15873"))
+(result_get <- viaf_get("15873"))
 #> # A tibble: 1 x 4
 #>   viaf_id source_ids        name_type      text               
 #>   <chr>   <list>            <chr>          <list>             
 #> 1 15873   <tibble [43 x 3]> Personal Names <tibble [241 x 15]>
 
-pull(result, source_ids) %>% pluck(1)
+# Retrieve a tibble of all source identifiers
+(source_ids <- dplyr::pull(result_get, source_ids) %>% purrr::pluck(1))
 #> # A tibble: 43 x 3
 #>    id              scheme name                                                 
 #>    <chr>           <chr>  <chr>                                                
@@ -74,7 +83,8 @@ pull(result, source_ids) %>% pluck(1)
 #> 10 00452768        NDL    National Diet Library                                
 #> # ... with 33 more rows
 
-pull(result, text) %>% pluck(1)
+# Retrieve a tibble of data from all sources
+(text <- dplyr::pull(result_get, text) %>% purrr::pluck(1))
 #> # A tibble: 241 x 15
 #>       id count a            b     c     d      e     f     g     q     `4`   `5`   `7`   `8`   `9`  
 #>    <int> <int> <chr>        <chr> <chr> <chr>  <chr> <chr> <chr> <chr> <chr> <chr> <chr> <chr> <chr>
@@ -90,18 +100,22 @@ pull(result, text) %>% pluck(1)
 #> 10     1     3 Ruiz Picass~ <NA>  <NA>  1881-~ <NA>  <NA>  <NA>  <NA>  <NA>  <NA>  <NA>  <NA>  <NA> 
 #> # ... with 231 more rows
 
-# aggregate name variants and show dominant ones
-pull(result, text) %>% pluck(1) %>% select(count, a) %>%
-  group_by(a) %>% summarise(count = sum(count)) %>%
-  arrange(-count) %>% filter(count > 9)
+# Aggregate name variants and show dominant ones 
+# (subfield code `a` declares personal names)
+dplyr::mutate(text, name_variant = a) %>% dplyr::group_by(name_variant) %>% 
+  dplyr::summarise(count = sum(count)) %>% dplyr::filter(count > 9)
 #> # A tibble: 3 x 2
-#>   a              count
+#>   name_variant   count
 #>   <chr>          <int>
-#> 1 Picasso, Pablo    34
-#> 2 Pablo Picasso     27
-#> 3 Picasso           14
+#> 1 Pablo Picasso     27
+#> 2 Picasso           14
+#> 3 Picasso, Pablo    34
+```
 
-(result <- viaf_search("Menzel", maximumRecords = 5))
+### Search VIAF records
+
+``` r
+(result_search <- viaf_search("Menzel", maximumRecords = 5))
 #> $Menzel
 #> # A tibble: 5 x 4
 #>   viaf_id                source_ids       name_type                 text            
@@ -112,7 +126,8 @@ pull(result, text) %>% pluck(1) %>% select(count, a) %>%
 #> 4 9771155286606387180001 <tibble [1 x 3]> Personal Names            <tibble [1 x 3]>
 #> 5 9738151247971644270003 <tibble [1 x 3]> Personal Names            <tibble [1 x 3]>
 
-pull(result$`Menzel`, source_ids)
+# Retrieve a tibble of all source identifiers
+(source_ids <- dplyr::pull(result_search$`Menzel`, source_ids))
 #> [[1]]
 #> # A tibble: 1 x 3
 #>   id                scheme name                     
@@ -144,14 +159,19 @@ pull(result$`Menzel`, source_ids)
 #>   <chr>      <chr>  <chr>                  
 #> 1 1146425104 DNB    German National Library
 
-pull(result$`Menzel`, text) %>% pluck(2)
+# Retrieve a tibble of data for the second search result
+(text <- dplyr::pull(result_search$`Menzel`, text) %>% purrr::pluck(2))
 #> # A tibble: 2 x 9
 #>      id count a           d       f     l      s         t                                   `0`    
 #>   <int> <int> <chr>       <chr>   <chr> <chr>  <chr>     <chr>                               <chr>  
 #> 1     1     1 Müller-Bro~ 1914-1~ 1961  German "Menzel-~ Graphic artist and his design prob~ (viaf)~
 #> 2     1     1 Müller-Bro~ 1914-1~ 1961  <NA>   "Menzel-~ Gestaltungsprobleme des Grafikers   <NA>
+```
 
-(result <- viaf_suggest("austen"))
+### Suggest VIAF records
+
+``` r
+(result_suggest <- viaf_suggest("austen"))
 #> $austen
 #> # A tibble: 10 x 5
 #>    viaf_id               source_ids        name_type      text                                 score
@@ -167,8 +187,9 @@ pull(result$`Menzel`, text) %>% pluck(2)
 #>  9 69175936              <tibble [5 x 3]>  Personal Names Austen, John 1886-1948               1747 
 #> 10 351144783162295221357 <tibble [3 x 3]>  Personal Names Austen Ivereigh                      1739
 
-filter(result$`austen`, score > 10000) %>%
-  pull(source_ids) %>% pluck(1)
+# Retrieve source identifiers for the most relevant search result
+dplyr::filter(result_suggest$`austen`, score > 10000) %>%
+  dplyr::pull(source_ids) %>% purrr::pluck(1)
 #> # A tibble: 12 x 3
 #>    id            scheme name                                                              
 #>    <chr>         <chr>  <chr>                                                             
