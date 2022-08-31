@@ -1,5 +1,8 @@
 context("Suggest")
 
+skip_on_cran()
+skip_if_offline(host = "viaf.org")
+
 test_that("query list", {
   expect_equal(
     unlist(viaf_suggest(list("rembrandt"))),
@@ -21,7 +24,7 @@ test_that("invalid query", {
 })
 
 test_that("empty query", {
-  result <- viaf_suggest("")[[1]]
+  expect_warning(result <- viaf_suggest("")[[1]])
 
   tbl_class <- c("tbl_df", "tbl", "data.frame")
 
@@ -37,4 +40,8 @@ test_that("valid query", {
   expect_equal(class(result), tbl_class)
   expect_equal(class(result$source_ids), "list")
   expect_equal(class(result$source_ids[[1]]), tbl_class)
+})
+
+test_that("query with no sources", {
+  expect_error(viaf_suggest("BESSHI COPPER MINE"), NA)
 })

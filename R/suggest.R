@@ -24,6 +24,10 @@ viaf_suggest <- function(query = NULL, ...) {
   if (is.list(query)) query <- unlist(query)
   assertthat::assert_that(is.vector(query))
 
+  if (any(sapply(query, nchar) == 0)) {
+    warning("At least one VIAF query is empty.")
+  }
+
   endpoint <- "AutoSuggest"
 
   items <- map(query, viaf_retrieve_query, endpoint = endpoint,
@@ -53,21 +57,28 @@ get_suggest <- function(x) {
     rename(
       viaf_id = "viafid", text = "term",
       name_type = "nametype"
-    ) %>%
-    mutate(
-      source_ids = map(
-        # columns that every record exhibits
-        transpose(select(., -c(
-          .data$text, .data$displayForm, .data$name_type,
-          .data$viaf_id, .data$score, .data$recordID
-        ))),
-        ~ enframe(.) %>% unnest() %>% drop_na() %>%
-          rename(id = "value", scheme = "name") %>%
-          mutate(scheme = toupper(.data$scheme)) %>%
-          left_join(authorities, by = "scheme") %>%
-          select(.data$id, .data$scheme, .data$name)
-      )
     )
+
+  if (ncol(metadata) > 6) {
+    metadata <- metadata %>%
+      mutate(
+        source_ids = map(
+          # columns that every record exhibits
+          transpose(select(., -c(
+            .data$text, .data$displayForm, .data$name_type,
+            .data$viaf_id, .data$score, .data$recordID
+          ))),
+          ~ enframe(.) %>% unnest(cols = names(.)) %>%
+            drop_na() %>%  # drop totally empty columns
+            rename(id = "value", scheme = "name") %>%
+            mutate(scheme = toupper(.data$scheme)) %>%
+            left_join(authorities, by = "scheme") %>%
+            select(.data$id, .data$scheme, .data$name)
+        )
+      )
+  } else {
+    metadata <- mutate(metadata, source_ids = list(NULL))
+  }
 
   metadata <- get_name_type(metadata) %>%
     select(
